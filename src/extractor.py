@@ -10,8 +10,10 @@ def get_transcript(video_id):
     """Fetches the transcript string for a given video ID."""
     try:
         api = YouTubeTranscriptApi()
+        # The .fetch method grabs the subtitle object list
         transcript = api.fetch(video_id)
-        return " ".join([t["text"] for t in transcript])
+        # FIX: Use t.text (object attribute) instead of t["text"] (dictionary key)
+        return " ".join([t.text for t in transcript])
     
     except TranscriptsDisabled:
         return "Error: Transcripts are disabled for this video."
