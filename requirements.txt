@@ -1,0 +1,6 @@
+youtube-transcript-api
+transformers
+accelerate
+sentencepiece
+torch
+streamlit
