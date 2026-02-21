@@ -1,10 +1,37 @@
 import streamlit as st
 from src.extractor import extract_video_id, get_transcript
 from src.nlp_model import VideoAIAssistant
+import base64
+
+# --- HELPER FUNCTION FOR TITLE ICON ---
+def get_base64_image(image_path):
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
 
 # --- PAGE CONFIGURATION ---
-st.set_page_config(page_title="YouTube AI Notes & QA", page_icon="🎥", layout="centered")
-st.title("🎥 YouTube AI Notes & Chatbot")
+# We use the PNG file as the browser tab icon (page_icon)
+st.set_page_config(
+    page_title="Notes YT", 
+    page_icon="logo.png", 
+    layout="centered"
+)
+
+# --- APP LOGO ---
+# This adds the logo to the top of the sidebar automatically
+st.logo("logo.png", icon_image="logo.png")
+
+# --- CUSTOM TITLE WITH ICON ---
+# We use HTML to place the logo inside the title line
+img_base64 = get_base64_image("logo.png")
+st.markdown(
+    f"""
+    <div style="display: flex; align-items: center;">
+        <img src="data:image/png;base64,{img_base64}" width="50" style="margin-right: 15px;">
+        <h1 style="margin: 0;">Notes YT</h1>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 st.write("Generate smart notes from any YouTube video and ask questions about it!")
 
 # --- LOAD MODEL (CACHED) ---
@@ -24,7 +51,7 @@ if "chat_history" not in st.session_state:
 
 # --- SIDEBAR: VIDEO INPUT ---
 with st.sidebar:
-    st.header("1. Enter Video Details")
+    st.header("Enter Video Details")
     url_input = st.text_input("Paste YouTube URL here:")
     process_btn = st.button("Generate Notes", type="primary")
 
