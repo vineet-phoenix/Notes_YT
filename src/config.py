@@ -1,44 +1,45 @@
 import os
 import torch
 from pathlib import Path
+from typing import ClassVar
 from dotenv import load_dotenv
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 
 load_dotenv()
 
 class Settings(BaseSettings):
     """Application configuration with environment variable support."""
     
-    # Project paths
-    PROJECT_ROOT = Path(__file__).parent.parent
-    DATA_DIR = PROJECT_ROOT / "data"
-    EMBEDDINGS_DIR = DATA_DIR / "embeddings"
-    CHATS_DIR = DATA_DIR / "chats"
-    EXPORTS_DIR = DATA_DIR / "exports"
-    LOGS_DIR = PROJECT_ROOT / "logs"
+    # Project paths (ClassVar - not Pydantic fields)
+    PROJECT_ROOT: ClassVar[Path] = Path(__file__).parent.parent
+    DATA_DIR: ClassVar[Path] = PROJECT_ROOT / "data"
+    EMBEDDINGS_DIR: ClassVar[Path] = DATA_DIR / "embeddings"
+    CHATS_DIR: ClassVar[Path] = DATA_DIR / "chats"
+    EXPORTS_DIR: ClassVar[Path] = DATA_DIR / "exports"
+    LOGS_DIR: ClassVar[Path] = PROJECT_ROOT / "logs"
     
     # YouTube & Media
-    YOUTUBE_CHUNK_SIZE = 1200
-    VIDEO_DOWNLOAD_DIR = DATA_DIR / "videos"
+    YOUTUBE_CHUNK_SIZE: int = 1200
+    VIDEO_DOWNLOAD_DIR: ClassVar[Path] = DATA_DIR / "videos"
     
     # AI/LLM Models
-    LOCAL_MODEL_NAME = "google/flan-t5-base"
-    EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+    LOCAL_MODEL_NAME: str = "google/flan-t5-base"
+    EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
     
     # Gemini API
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL_NAME = "gemini-pro-vision"
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL_NAME: str = "gemini-pro-vision"
     
     # Vector Database
-    VECTOR_DB_TYPE = os.getenv("VECTOR_DB_TYPE", "chromadb")
+    VECTOR_DB_TYPE: str = os.getenv("VECTOR_DB_TYPE", "chromadb")
     
     # Processing
-    MAX_CHUNK_TOKENS = 512
-    SCENE_DETECTION_THRESHOLD = 27.0
+    MAX_CHUNK_TOKENS: int = 512
+    SCENE_DETECTION_THRESHOLD: float = 27.0
     
     # Performance
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-    BATCH_SIZE = 32
+    DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
+    BATCH_SIZE: int = 32
     
     class Config:
         env_file = ".env"
