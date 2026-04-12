@@ -34,3 +34,21 @@ class GeminiLLM:
         
         response = self.model.generate_content(content)
         return response.text
+
+    @handle_exception
+    def summarize_with_images(self, text: str, images: List = None) -> str:
+        """Generate high-quality summary with multimodal context."""
+        
+        prompt = f"""Analyze the following transcript and any provided images to create 
+comprehensive, well-structured notes. Focus on:
+- Key concepts and main ideas
+- Important definitions and explanations
+- Visual insights from images
+- Timestamps and scene descriptions
+
+Transcript:
+{text}
+
+Please provide detailed, organized notes."""
+        
+        return self.generate(prompt, images)

@@ -29,6 +29,66 @@ class YouTubeExtractor:
         raise VideoExtractionError(f"Could not extract video ID from URL: {url}")
     
     @handle_exception
+    def download_audio(self, url: str, output_path: Optional[str] = None) -> str:
+        """Download audio stream from video."""
+        if not output_path:
+            video_id = self.extract_video_id(url)
+            output_path = self.video_download_dir / f"{video_id}.mp3"
+        
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+            'outtmpl': str(output_path),
+            'quiet': True,
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            logger.info(f"Downloading audio from {url}")
+            ydl.download([url])
+        
+        return str(output_path)
+    
+    @handle_exception
+    def download_video_frames(self, url: str, output_dir: Optional[str] = None) -> str:
+        """Download video for scene detection."""
+        if not output_dir:
+            video_id = self.extract_video_id(url)
+            output_dir = self.video_download_dir / video_id
+        
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        ydl_opts = {
+            'format': 'best[ext=mp4]',
+            'outtmpl': str(output_dir / '%(title)s.%(ext)s'),
+            'quiet': True,
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            logger.info(f"Downloading video from {url}")
+            ydl.download([url])
+        
+        return str(output_dir)
+    
+    @handle_exception
+    def get_captions(self, url: str) -> Dict[str, str]:
+        """Extract captions/subtitles from video."""
+        ydl_opts = {
+            'writesubtitles': True,
+            'writeautomaticsub': True,
+            'skip_unavailable_fragments': True,
+            'quiet': True,
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            logger.info(f"Extracting captions from {url}")
+            info = ydl.extract_info(url, download=False)
+            return info.get('subtitles', {})
+    
+    @handle_exception
     def get_video_metadata(self, url: str) -> Dict:
         """Get video metadata (title, duration, description)."""
         ydl_opts = {'quiet': True}

@@ -2,6 +2,7 @@ import chromadb
 import faiss
 import numpy as np
 from typing import List, Dict, Tuple
+from pathlib import Path
 from src.logger import get_logger
 from src.config import settings
 from src.utils.error_handler import VectorStoreError, handle_exception
@@ -108,3 +109,20 @@ class VectorStore:
                     ))
             
             return results
+    
+    @handle_exception
+    def clear(self):
+        """Clear all embeddings from vector store."""
+        if self.db_type == "chromadb":
+            self.client.delete_collection(name=self.collection_name)
+            self.collection = self.client.get_or_create_collection(name=self.collection_name)
+            logger.info("Cleared ChromaDB collection")
+        
+        elif self.db_type == "faiss":
+            self.index = None
+            self.metadata = []
+            if self.index_path.exists():
+                self.index_path.unlink()
+            if self.metadata_path.exists():
+                self.metadata_path.unlink()
+            logger.info("Cleared FAISS index")

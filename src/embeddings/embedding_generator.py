@@ -43,3 +43,7 @@ class EmbeddingGenerator:
         """Generate embedding for a single text."""
         embedding = self.model.encode(text, convert_to_numpy=True)
         return embedding
+    
+    def get_embedding_dimension(self) -> int:
+        """Get the dimension of embeddings."""
+        return self.model.get_embedding_dimension()
