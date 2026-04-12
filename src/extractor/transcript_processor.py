@@ -14,7 +14,7 @@ class TranscriptProcessor:
         """Fetch transcript with timestamp information."""
         try:
             api = YouTubeTranscriptApi()
-            transcript = api.fetch_transcript(video_id)
+            transcript = api.fetch(video_id)
             logger.info(f"Successfully fetched transcript for video {video_id}")
             return transcript
         except Exception as e:
@@ -35,14 +35,17 @@ class TranscriptProcessor:
         }
         
         for entry in transcript:
-            text = entry['text']
+            # Handle both dict and FetchedTranscriptSnippet objects
+            text = entry.get('text') if isinstance(entry, dict) else entry.text
+            start = entry.get('start') if isinstance(entry, dict) else entry.start
+            duration = entry.get('duration') if isinstance(entry, dict) else entry.duration
             
             if not current_chunk['text']:
-                current_chunk['start'] = entry['start']
+                current_chunk['start'] = start
             
             if len(current_chunk['text']) + len(text) < chunk_size:
                 current_chunk['text'] += ' ' + text
-                current_chunk['end'] = entry['start'] + entry['duration']
+                current_chunk['end'] = start + duration
                 current_chunk['duration'] = current_chunk['end'] - current_chunk['start']
             else:
                 if current_chunk['text']:
@@ -50,9 +53,9 @@ class TranscriptProcessor:
                 
                 current_chunk = {
                     'text': text,
-                    'start': entry['start'],
-                    'end': entry['start'] + entry['duration'],
-                    'duration': entry['duration']
+                    'start': start,
+                    'end': start + duration,
+                    'duration': duration
                 }
         
         if current_chunk['text']:
