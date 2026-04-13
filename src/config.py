@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     VIDEO_DOWNLOAD_DIR: ClassVar[Path] = DATA_DIR / "videos"
     
     # AI/LLM Models
-    LOCAL_MODEL_NAME: str = "Qwen/Qwen2-0.5B"
+    LOCAL_MODEL_NAME: str = "Qwen/Qwen3-0.6B-Instruct"
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
     
     # Whisper Audio Transcription

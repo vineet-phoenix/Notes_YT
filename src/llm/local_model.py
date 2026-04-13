@@ -18,17 +18,47 @@ class LocalLLM:
         self.model_name = model_name
         
         try:
+            logger.info(f"Loading model: {model_name}")
             self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-            self.model = AutoModelForCausalLM.from_pretrained(
-                model_name,
-                trust_remote_code=True,
-                torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
-                device_map=self.device
-            )
+            
+            # Load model with appropriate device handling
+            if self.device == "cuda":
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    model_name,
+                    trust_remote_code=True,
+                    torch_dtype=torch.float16,
+                    device_map="auto"
+                )
+            else:
+                # CPU: don't use device_map, just load and move to device
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    model_name,
+                    trust_remote_code=True,
+                    torch_dtype=torch.float32,
+                ).to(self.device)
+            
             self.model.eval()
             logger.info(f"Loaded local model: {model_name} on device: {self.device}")
         except Exception as e:
-            raise ModelError(f"Failed to load local model: {str(e)}")
+            logger.warning(f"Failed to load {model_name}: {str(e)}. Falling back to gpt2...")
+            try:
+                # Fallback to gpt2 if Qwen model fails
+                self.model_name = "gpt2"
+                self.tokenizer = AutoTokenizer.from_pretrained("gpt2")
+                
+                if self.device == "cuda":
+                    self.model = AutoModelForCausalLM.from_pretrained(
+                        "gpt2",
+                        torch_dtype=torch.float16,
+                        device_map="auto"
+                    )
+                else:
+                    self.model = AutoModelForCausalLM.from_pretrained("gpt2").to(self.device)
+                
+                self.model.eval()
+                logger.info(f"Loaded fallback model: gpt2 on device: {self.device}")
+            except Exception as fallback_error:
+                raise ModelError(f"Failed to load both {model_name} and fallback gpt2: {str(fallback_error)}")
     
     @handle_exception
     def generate(self, prompt: str, max_length: int = 200, 

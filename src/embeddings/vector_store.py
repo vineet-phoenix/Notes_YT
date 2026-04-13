@@ -53,11 +53,27 @@ class VectorStore:
             if ids is None:
                 ids = [str(i) for i in range(len(documents))]
             
+            # Clean metadata: remove empty lists and convert complex objects to strings
+            clean_metadatas = []
+            for doc in documents:
+                clean_meta = {}
+                for key, value in doc.items():
+                    if key == 'scenes':
+                        # Convert scenes list to string or skip if empty
+                        if value and isinstance(value, list):
+                            clean_meta[key] = f"{len(value)} scenes detected"
+                        continue
+                    elif value and not isinstance(value, (list, dict)):
+                        # Only include non-empty scalar values
+                        clean_meta[key] = str(value)[:500]  # Limit string length
+                
+                clean_metadatas.append(clean_meta if clean_meta else {'source': 'transcript'})
+            
             self.collection.add(
                 ids=ids,
                 embeddings=embeddings.tolist(),
-                documents=[doc.get('text', '') for doc in documents],
-                metadatas=documents
+                documents=[doc.get('combined_text', doc.get('text', '')) for doc in documents],
+                metadatas=clean_metadatas
             )
             logger.info(f"Added {len(embeddings)} embeddings to ChromaDB")
         
