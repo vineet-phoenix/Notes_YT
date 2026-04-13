@@ -1,5 +1,5 @@
 import google.genai as genai
-from typing import List
+from typing import List, Dict
 from src.logger import get_logger
 from src.config import settings
 from src.utils.error_handler import ModelError, handle_exception
@@ -7,7 +7,7 @@ from src.utils.error_handler import ModelError, handle_exception
 logger = get_logger(__name__)
 
 class GeminiLLM:
-    """Google Gemini API for multimodal generation."""
+    """Google Gemini-3 API for multimodal generation."""
     
     def __init__(self, api_key: str = None):
         if api_key is None:
@@ -19,7 +19,7 @@ class GeminiLLM:
         try:
             genai.configure(api_key=api_key)
             self.model = genai.GenerativeModel(settings.GEMINI_MODEL_NAME)
-            logger.info("Initialized Gemini API")
+            logger.info(f"Initialized Gemini API with model: {settings.GEMINI_MODEL_NAME}")
         except Exception as e:
             raise ModelError(f"Failed to initialize Gemini API: {str(e)}")
     
@@ -52,3 +52,45 @@ Transcript:
 Please provide detailed, organized notes."""
         
         return self.generate(prompt, images)
+    
+    @handle_exception
+    def summarize_chunks(self, chunks: List[str]) -> List[str]:
+        """Summarize multiple text chunks."""
+        summaries = []
+        
+        for chunk in chunks:
+            prompt = f"Summarize the following in bullet points:\n\n{chunk}\n\nSummary:"
+            summary = self.generate(prompt)
+            summaries.append(summary.strip())
+        
+        return summaries
+    
+    @handle_exception
+    def summarize_multimodal(self, captions: str, audio_transcript: str, scenes: List[Dict] = None) -> str:
+        """Generate comprehensive summary from captions, audio transcript, and scene info."""
+        
+        scene_info = ""
+        if scenes:
+            scene_info = "\n\nDetected Scenes:\n"
+            for i, scene in enumerate(scenes[:10]):  # Top 10 scenes
+                scene_info += f"- Scene {i+1} at {scene.get('timestamp', 'N/A')}s (Change: {scene.get('difference', 0):.2f})\n"
+        
+        prompt = f"""Analyze the following multimodal content to create comprehensive, well-structured notes.
+
+CAPTIONS:
+{captions}
+
+AUDIO TRANSCRIPT:
+{audio_transcript}
+{scene_info}
+
+Please provide detailed, organized notes that:
+1. Highlight key concepts from both sources
+2. Note where captions and audio differ
+3. Reference important scene changes
+4. Structure the information logically
+5. Include timestamps where relevant
+
+COMPREHENSIVE NOTES:"""
+        
+        return self.generate(prompt)

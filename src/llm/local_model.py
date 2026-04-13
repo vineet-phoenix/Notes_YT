@@ -1,5 +1,5 @@
 import torch
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from transformers import AutoTokenizer, AutoModelForCausalLM
 from typing import List
 from src.logger import get_logger
 from src.config import settings
@@ -8,7 +8,7 @@ from src.utils.error_handler import ModelError, handle_exception
 logger = get_logger(__name__)
 
 class LocalLLM:
-    """Flan-T5 local model for fast text-only generation."""
+    """Qwen3 0.6B local model for efficient text-only generation."""
     
     def __init__(self, model_name: str = None):
         if model_name is None:
@@ -18,8 +18,14 @@ class LocalLLM:
         self.model_name = model_name
         
         try:
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-            self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(self.device)
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_name,
+                trust_remote_code=True,
+                torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
+                device_map=self.device
+            )
+            self.model.eval()
             logger.info(f"Loaded local model: {model_name} on device: {self.device}")
         except Exception as e:
             raise ModelError(f"Failed to load local model: {str(e)}")
@@ -27,18 +33,20 @@ class LocalLLM:
     @handle_exception
     def generate(self, prompt: str, max_length: int = 200, 
                 temperature: float = 0.7) -> str:
-        """Generate text using Flan-T5."""
+        """Generate text using Qwen3."""
         
         inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, 
-                               max_length=1024).to(self.device)
+                               max_length=2048).to(self.device)
         
-        outputs = self.model.generate(
-            **inputs,
-            max_length=max_length,
-            temperature=temperature,
-            num_beams=4,
-            early_stopping=True
-        )
+        with torch.no_grad():
+            outputs = self.model.generate(
+                **inputs,
+                max_length=max_length,
+                temperature=temperature,
+                top_p=0.95,
+                do_sample=True,
+                repetition_penalty=1.1
+            )
         
         return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
     
@@ -48,8 +56,8 @@ class LocalLLM:
         summaries = []
         
         for chunk in chunks:
-            prompt = f"Summarize the following in bullet points:\n\n{chunk}"
+            prompt = f"Summarize the following in bullet points:\n\n{chunk}\n\nSummary:"
             summary = self.generate(prompt, max_length=150)
-            summaries.append(summary)
+            summaries.append(summary.strip())
         
         return summaries

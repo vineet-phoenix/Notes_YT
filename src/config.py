@@ -23,12 +23,16 @@ class Settings(BaseSettings):
     VIDEO_DOWNLOAD_DIR: ClassVar[Path] = DATA_DIR / "videos"
     
     # AI/LLM Models
-    LOCAL_MODEL_NAME: str = "google/flan-t5-base"
+    LOCAL_MODEL_NAME: str = "Qwen/Qwen2-0.5B"
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
+    
+    # Whisper Audio Transcription
+    WHISPER_MODEL: str = "base"  # Options: tiny, base, small, medium, large
+    AUDIO_CHUNK_SIZE: int = 30  # seconds
     
     # Gemini API
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL_NAME: str = "gemini-pro-vision"
+    GEMINI_MODEL_NAME: str = "gemini-3-pro"
     
     # Vector Database
     VECTOR_DB_TYPE: str = os.getenv("VECTOR_DB_TYPE", "chromadb")

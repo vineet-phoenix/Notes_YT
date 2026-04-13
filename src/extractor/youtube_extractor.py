@@ -1,6 +1,8 @@
 import yt_dlp
 import re
-from typing import Optional, Dict
+import subprocess
+from typing import Optional, Dict, Tuple
+from pathlib import Path
 from src.config import settings
 from src.logger import get_logger
 from src.utils.error_handler import VideoExtractionError, handle_exception
@@ -12,6 +14,7 @@ class YouTubeExtractor:
     
     def __init__(self):
         self.video_download_dir = settings.VIDEO_DOWNLOAD_DIR
+        self.video_download_dir.mkdir(parents=True, exist_ok=True)
         
     @handle_exception
     def extract_video_id(self, url: str) -> str:
@@ -103,3 +106,43 @@ class YouTubeExtractor:
                 'uploader': info.get('uploader'),
                 'upload_date': info.get('upload_date'),
             }
+    
+    @handle_exception
+    def get_best_video_stream_url(self, url: str) -> Tuple[str, str]:
+        """Get best video stream URL without downloading."""
+        ydl_opts = {
+            'format': 'best[ext=mp4]/best',
+            'quiet': True,
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            logger.info(f"Fetching best video stream URL for {url}")
+            info = ydl.extract_info(url, download=False)
+            stream_url = info.get('url')
+            title = info.get('title', 'video')
+            return stream_url, title
+    
+    @handle_exception
+    def stream_video_to_file(self, url: str, output_path: Optional[str] = None) -> str:
+        """Stream and download video to local file using ffmpeg."""
+        if not output_path:
+            video_id = self.extract_video_id(url)
+            output_path = str(self.video_download_dir / f"{video_id}.mp4")
+        
+        stream_url, _ = self.get_best_video_stream_url(url)
+        
+        try:
+            logger.info(f"Streaming video to {output_path}")
+            command = [
+                'ffmpeg',
+                '-i', stream_url,
+                '-c', 'copy',
+                '-bsf:a', 'aac_adtstoasc',
+                output_path,
+                '-y'
+            ]
+            subprocess.run(command, check=True, capture_output=True)
+            logger.info(f"Video stream saved to {output_path}")
+            return output_path
+        except Exception as e:
+            raise VideoExtractionError(f"Failed to stream video: {str(e)}")
