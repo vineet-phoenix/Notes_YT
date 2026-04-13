@@ -2,6 +2,7 @@ from enum import Enum
 from src.llm.local_model import LocalLLM
 from src.llm.gemini_model import GeminiLLM
 from src.logger import get_logger
+from src.config import settings
 
 logger = get_logger(__name__)
 
@@ -17,7 +18,17 @@ class ModelFactory:
     @staticmethod
     def create_model(model_type: ModelType):
         """Create or retrieve cached model instance."""
-        
+
+        # Refresh local model if config changed during a live Streamlit session.
+        if model_type == ModelType.LOCAL and model_type in ModelFactory._instances:
+            cached = ModelFactory._instances[model_type]
+            cached_name = getattr(cached, "model_name", None)
+            if cached_name != settings.LOCAL_MODEL_NAME:
+                logger.info(
+                    f"Local model changed ({cached_name} -> {settings.LOCAL_MODEL_NAME}); reloading instance"
+                )
+                del ModelFactory._instances[model_type]
+
         if model_type not in ModelFactory._instances:
             try:
                 if model_type == ModelType.LOCAL:

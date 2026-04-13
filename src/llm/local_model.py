@@ -9,6 +9,36 @@ logger = get_logger(__name__)
 
 class LocalLLM:
     """Qwen3 0.6B local model for efficient text-only generation."""
+
+    def _load_model(self, model_name: str, force_download: bool = False):
+        """Load tokenizer and model, optionally forcing a fresh download."""
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            model_name,
+            trust_remote_code=True,
+            force_download=force_download,
+            local_files_only=False,
+        )
+
+        if self.device == "cuda":
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_name,
+                trust_remote_code=True,
+                dtype=torch.float16,
+                device_map="auto",
+                force_download=force_download,
+                local_files_only=False,
+            )
+        else:
+            # CPU: avoid device_map dependency path
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_name,
+                trust_remote_code=True,
+                dtype=torch.float32,
+                force_download=force_download,
+                local_files_only=False,
+            ).to(self.device)
+
+        self.model.eval()
     
     def __init__(self, model_name: str = None):
         if model_name is None:
@@ -19,66 +49,56 @@ class LocalLLM:
         
         try:
             logger.info(f"Loading model: {model_name}")
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-            
-            # Load model with appropriate device handling
-            if self.device == "cuda":
-                self.model = AutoModelForCausalLM.from_pretrained(
-                    model_name,
-                    trust_remote_code=True,
-                    torch_dtype=torch.float16,
-                    device_map="auto"
-                )
-            else:
-                # CPU: don't use device_map, just load and move to device
-                self.model = AutoModelForCausalLM.from_pretrained(
-                    model_name,
-                    trust_remote_code=True,
-                    torch_dtype=torch.float32,
-                ).to(self.device)
-            
-            self.model.eval()
+            self._load_model(model_name, force_download=False)
             logger.info(f"Loaded local model: {model_name} on device: {self.device}")
-        except Exception as e:
-            logger.warning(f"Failed to load {model_name}: {str(e)}. Falling back to gpt2...")
+        except Exception as first_error:
+            logger.warning(
+                f"Initial load failed for {model_name}: {str(first_error)}. "
+                "Retrying with force_download=True..."
+            )
             try:
-                # Fallback to gpt2 if Qwen model fails
-                self.model_name = "gpt2"
-                self.tokenizer = AutoTokenizer.from_pretrained("gpt2")
-                
-                if self.device == "cuda":
-                    self.model = AutoModelForCausalLM.from_pretrained(
-                        "gpt2",
-                        torch_dtype=torch.float16,
-                        device_map="auto"
+                self._load_model(model_name, force_download=True)
+                logger.info(
+                    f"Loaded local model after forced download: {model_name} on device: {self.device}"
+                )
+            except Exception as second_error:
+                logger.warning(
+                    f"Forced download also failed for {model_name}: {str(second_error)}. "
+                    "Falling back to gpt2..."
+                )
+                try:
+                    self.model_name = "gpt2"
+                    self._load_model("gpt2", force_download=False)
+                    logger.info(f"Loaded fallback model: gpt2 on device: {self.device}")
+                except Exception as fallback_error:
+                    raise ModelError(
+                        f"Failed to load {model_name} (normal + forced download) and fallback gpt2: {str(fallback_error)}"
                     )
-                else:
-                    self.model = AutoModelForCausalLM.from_pretrained("gpt2").to(self.device)
-                
-                self.model.eval()
-                logger.info(f"Loaded fallback model: gpt2 on device: {self.device}")
-            except Exception as fallback_error:
-                raise ModelError(f"Failed to load both {model_name} and fallback gpt2: {str(fallback_error)}")
     
     @handle_exception
-    def generate(self, prompt: str, max_length: int = 200, 
+    def generate(self, prompt: str, max_new_tokens: int = 200, 
                 temperature: float = 0.7) -> str:
         """Generate text using Qwen3."""
         
         inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, 
                                max_length=2048).to(self.device)
+        input_len = inputs["input_ids"].shape[1]
+        do_sample = temperature > 0
         
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_length=max_length,
+                max_new_tokens=max_new_tokens,
                 temperature=temperature,
                 top_p=0.95,
-                do_sample=True,
-                repetition_penalty=1.1
+                do_sample=do_sample,
+                repetition_penalty=1.1,
+                pad_token_id=self.tokenizer.eos_token_id,
             )
-        
-        return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+        # Causal LM returns prompt + generated text. Keep only new tokens.
+        generated_ids = outputs[0][input_len:]
+        return self.tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
     
     @handle_exception
     def summarize_chunks(self, chunks: List[str]) -> List[str]:
@@ -86,8 +106,16 @@ class LocalLLM:
         summaries = []
         
         for chunk in chunks:
-            prompt = f"Summarize the following in bullet points:\n\n{chunk}\n\nSummary:"
-            summary = self.generate(prompt, max_length=150)
-            summaries.append(summary.strip())
+            prompt = (
+                "Create concise bullet-point notes from this transcript chunk. "
+                "Return only bullet points. Do not repeat the prompt.\n\n"
+                f"Chunk:\n{chunk}\n\n"
+                "Bullet Notes:"
+            )
+            summary = self.generate(prompt, max_new_tokens=180, temperature=0.2)
+
+            # Last-resort cleanup in case a model still echoes prompt text.
+            cleaned = summary.replace("Summarize the following in bullet points:", "").strip()
+            summaries.append(cleaned)
         
         return summaries

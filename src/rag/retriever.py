@@ -34,7 +34,7 @@ ANSWER:"""
         
         if self.model_type == ModelType.LOCAL:
             # Use Qwen3 for efficient local inference
-            answer = self.llm.generate(prompt, max_length=200, temperature=0.7)
+            answer = self.llm.generate(prompt, max_new_tokens=200, temperature=0.7)
         else:
             # Use Gemini for high-quality answers
             answer = self.llm.generate(prompt)
