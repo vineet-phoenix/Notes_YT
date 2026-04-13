@@ -19,7 +19,7 @@ def render():
         model_type = st.selectbox(
             "Select LLM Mode:",
             ["Local (Fast)", "Gemini (Quality)"],
-            help="Local: Uses Flan-T5 (text-only, faster)\nGemini: Uses multimodal API (slower, higher quality)"
+            help="Local: Uses Qwen3 (text-only, faster)\nGemini: Uses multimodal API (slower, higher quality)"
         )
         
         st.session_state.model_type = "local" if model_type == "Local (Fast)" else "gemini"
