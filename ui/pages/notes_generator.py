@@ -101,7 +101,7 @@ def render():
                     full_notes = "\n\n".join(summaries)
                 else:
                     # Use Gemini for multimodal summarization
-                    st.info("✨ Generating comprehensive notes with Gemini-3...")
+                    st.info("✨ Generating comprehensive notes with Gemini-2.5...")
                     llm = ModelFactory.create_model(model_type)
                     
                     # Format content for Gemini

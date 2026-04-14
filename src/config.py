@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     
     # Gemini API
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL_NAME: str = "gemini-3-pro"
+    GEMINI_MODEL_NAME: str = "gemini-2.5-pro"
     
     # Vector Database
     VECTOR_DB_TYPE: str = os.getenv("VECTOR_DB_TYPE", "chromadb")

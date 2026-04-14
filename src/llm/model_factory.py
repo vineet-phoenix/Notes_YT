@@ -29,6 +29,16 @@ class ModelFactory:
                 )
                 del ModelFactory._instances[model_type]
 
+        # Refresh gemini model if config changed
+        if model_type == ModelType.GEMINI and model_type in ModelFactory._instances:
+            cached = ModelFactory._instances[model_type]
+            cached_name = getattr(cached, "model_name", None)
+            if cached_name != settings.GEMINI_MODEL_NAME:
+                logger.info(
+                    f"Gemini model changed ({cached_name} -> {settings.GEMINI_MODEL_NAME}); reloading instance"
+                )
+                del ModelFactory._instances[model_type]
+
         if model_type not in ModelFactory._instances:
             try:
                 if model_type == ModelType.LOCAL:

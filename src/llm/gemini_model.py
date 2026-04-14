@@ -17,8 +17,8 @@ class GeminiLLM:
             raise ModelError("GEMINI_API_KEY not set in environment variables")
         
         try:
-            genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel(settings.GEMINI_MODEL_NAME)
+            self.client = genai.Client(api_key=api_key)
+            self.model_name = settings.GEMINI_MODEL_NAME
             logger.info(f"Initialized Gemini API with model: {settings.GEMINI_MODEL_NAME}")
         except Exception as e:
             raise ModelError(f"Failed to initialize Gemini API: {str(e)}")
@@ -32,7 +32,10 @@ class GeminiLLM:
         else:
             content = prompt
         
-        response = self.model.generate_content(content)
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=content
+        )
         return response.text
 
     @handle_exception
