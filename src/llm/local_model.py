@@ -39,6 +39,14 @@ class LocalLLM:
             ).to(self.device)
 
         self.model.eval()
+        
+        # Set up terminators for instruction-tuned models
+        self.terminators = [
+            self.tokenizer.eos_token_id,
+            self.tokenizer.convert_tokens_to_ids("<|im_end|>")
+        ]
+        # Filter out Nones if token doesn't exist
+        self.terminators = [t for t in self.terminators if t is not None]
     
     def __init__(self, model_name: str = None):
         if model_name is None:
@@ -94,6 +102,7 @@ class LocalLLM:
                 do_sample=do_sample,
                 repetition_penalty=1.1,
                 pad_token_id=self.tokenizer.eos_token_id,
+                eos_token_id=self.terminators if hasattr(self, 'terminators') else self.tokenizer.eos_token_id,
             )
 
         # Causal LM returns prompt + generated text. Keep only new tokens.
@@ -106,13 +115,22 @@ class LocalLLM:
         summaries = []
         
         for chunk in chunks:
-            prompt = (
-                "Create concise bullet-point notes from this transcript chunk. "
-                "Return only bullet points. Do not repeat the prompt.\n\n"
-                f"Chunk:\n{chunk}\n\n"
-                "Bullet Notes:"
-            )
-            summary = self.generate(prompt, max_new_tokens=180, temperature=0.2)
+            messages = [
+                {"role": "system", "content": "You are an expert summarizer. Extract the most important points from the video transcript chunk. Output ONLY bullet points."},
+                {"role": "user", "content": f"Create concise bullet-point notes from this transcript chunk:\n\n{chunk}"}
+            ]
+            
+            if hasattr(self.tokenizer, "apply_chat_template"):
+                prompt = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+            else:
+                prompt = (
+                    "Create concise bullet-point notes from this transcript chunk. "
+                    "Return only bullet points. Do not repeat the prompt.\n\n"
+                    f"Chunk:\n{chunk}\n\n"
+                    "Bullet Notes:"
+                )
+                
+            summary = self.generate(prompt, max_new_tokens=256, temperature=0.2)
 
             # Last-resort cleanup in case a model still echoes prompt text.
             cleaned = summary.replace("Summarize the following in bullet points:", "").strip()
