@@ -13,7 +13,6 @@ pillow>=10.1.0
 
 # Audio & Speech Processing
 git+https://github.com/openai/whisper.git
-faster-whisper==1.0.3
 
 # AI/ML Frameworks
 torch>=2.1.2
