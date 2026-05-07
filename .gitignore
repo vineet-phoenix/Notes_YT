@@ -49,6 +49,9 @@ logs/
 # Streamlit
 .streamlit/
 
+# Agent Definitions
+.github/agents/IEEE-Paper-Writer.agent.md
+
 # Cache
 .cache/
 *.cache
