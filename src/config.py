@@ -7,6 +7,12 @@ from pydantic_settings import BaseSettings
 
 load_dotenv()
 
+try:
+    import torch_directml
+    _has_dml = torch_directml.is_available()
+except ImportError:
+    _has_dml = False
+
 class Settings(BaseSettings):
     """Application configuration with environment variable support."""
     
@@ -42,7 +48,7 @@ class Settings(BaseSettings):
     SCENE_DETECTION_THRESHOLD: float = 27.0
     
     # Performance
-    DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
+    DEVICE: str = "cuda" if torch.cuda.is_available() else "dml" if _has_dml else "cpu"
     BATCH_SIZE: int = 32
     
     class Config:

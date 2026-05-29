@@ -18,9 +18,10 @@ git+https://github.com/openai/whisper.git
 torch>=2.1.2
 torchvision>=0.16.2
 transformers>=4.35.2
-protobuf<3.20.x
+protobuf<3.20.3
 sentence-transformers>=2.2.2
 accelerate>=0.27.0
+torch-directml>=0.2.0
 
 # Vector Databases
 chromadb>=0.4.21

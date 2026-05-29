@@ -28,6 +28,15 @@ class LocalLLM:
                 force_download=force_download,
                 local_files_only=False,
             )
+        elif self.device == "dml":
+            # DirectML specific path
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_name,
+                trust_remote_code=True,
+                dtype=torch.float16,
+                force_download=force_download,
+                local_files_only=False,
+            ).to(self.torch_device)
         else:
             # CPU: avoid device_map dependency path
             self.model = AutoModelForCausalLM.from_pretrained(
@@ -36,7 +45,7 @@ class LocalLLM:
                 dtype=torch.float32,
                 force_download=force_download,
                 local_files_only=False,
-            ).to(self.device)
+            ).to(self.torch_device)
 
         self.model.eval()
         
@@ -53,6 +62,13 @@ class LocalLLM:
             model_name = settings.LOCAL_MODEL_NAME
         
         self.device = settings.DEVICE
+        
+        if self.device == "dml":
+            import torch_directml
+            self.torch_device = torch_directml.device()
+        else:
+            self.torch_device = self.device
+            
         self.model_name = model_name
         
         try:
@@ -89,7 +105,7 @@ class LocalLLM:
         """Generate text using Qwen3."""
         
         inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, 
-                               max_length=2048).to(self.device)
+                               max_length=2048).to(self.torch_device)
         input_len = inputs["input_ids"].shape[1]
         do_sample = temperature > 0
         
